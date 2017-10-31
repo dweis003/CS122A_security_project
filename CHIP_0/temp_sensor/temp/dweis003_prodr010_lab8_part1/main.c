@@ -14,6 +14,7 @@ unsigned char temp_val = 0x00;
 unsigned short temp_MV = 0x00;
 #include "io.c"
 
+
 void ADC_init() {
 	ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
 	// ADEN: setting this bit enables analog-to-digital conversion.
@@ -24,9 +25,14 @@ void ADC_init() {
 }
 
 
+
 void read(){
 	temp_MV = ADC * (5000/1024);
 	temp_val = ((temp_MV - 500)/10);
+	PORTB = 0x00;
+	if(temp_val > 32){
+		PORTB = 0xFF;
+	}
 	if(temp_val < 10){
 		LCD_DisplayString(1,"temp less than 10");
 	}
@@ -53,6 +59,7 @@ int main(void)
 	PORTA = 0xFF; // Init port A to 0s
 	DDRC = 0xFF; PORTC = 0x00; // set as output for lcd
 	DDRD = 0xFF; PORTD = 0x00; // LCD control lines
+	DDRB = 0xFF; PORTD = 0x00;
 	LCD_init();
 
 	ADC_init();

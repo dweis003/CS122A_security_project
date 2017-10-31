@@ -3,31 +3,31 @@ dweis003_prodr010_lab8_part1.elf:     file format elf32-avr
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .data         00000062  00800100  0000023a  000002ce  2**0
+  0 .data         00000062  00800100  00000250  000002e4  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  1 .text         0000023a  00000000  00000000  00000094  2**1
+  1 .text         00000250  00000000  00000000  00000094  2**1
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  2 .bss          00000003  00800162  00800162  00000330  2**0
+  2 .bss          00000003  00800162  00800162  00000346  2**0
                   ALLOC
-  3 .comment      00000030  00000000  00000000  00000330  2**0
+  3 .comment      00000030  00000000  00000000  00000346  2**0
                   CONTENTS, READONLY
-  4 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  00000360  2**2
+  4 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  00000378  2**2
                   CONTENTS, READONLY
-  5 .debug_aranges 00000068  00000000  00000000  000003a0  2**0
+  5 .debug_aranges 00000068  00000000  00000000  000003b8  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_info   00000403  00000000  00000000  00000408  2**0
+  6 .debug_info   00000403  00000000  00000000  00000420  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_abbrev 00000137  00000000  00000000  0000080b  2**0
+  7 .debug_abbrev 00000137  00000000  00000000  00000823  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_line   00000294  00000000  00000000  00000942  2**0
+  8 .debug_line   000002ac  00000000  00000000  0000095a  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_frame  000000c8  00000000  00000000  00000bd8  2**2
+  9 .debug_frame  000000c8  00000000  00000000  00000c08  2**2
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_str    00000213  00000000  00000000  00000ca0  2**0
+ 10 .debug_str    00000232  00000000  00000000  00000cd0  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_loc    0000021a  00000000  00000000  00000eb3  2**0
+ 11 .debug_loc    0000021a  00000000  00000000  00000f02  2**0
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_ranges 00000058  00000000  00000000  000010cd  2**0
+ 12 .debug_ranges 00000058  00000000  00000000  0000111c  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -116,7 +116,7 @@ Disassembly of section .text:
   98:	11 e0       	ldi	r17, 0x01	; 1
   9a:	a0 e0       	ldi	r26, 0x00	; 0
   9c:	b1 e0       	ldi	r27, 0x01	; 1
-  9e:	ea e3       	ldi	r30, 0x3A	; 58
+  9e:	e0 e5       	ldi	r30, 0x50	; 80
   a0:	f2 e0       	ldi	r31, 0x02	; 2
   a2:	00 e0       	ldi	r16, 0x00	; 0
   a4:	0b bf       	out	0x3b, r16	; 59
@@ -140,8 +140,8 @@ Disassembly of section .text:
   bc:	a5 36       	cpi	r26, 0x65	; 101
   be:	b2 07       	cpc	r27, r18
   c0:	e1 f7       	brne	.-8      	; 0xba <.do_clear_bss_loop>
-  c2:	9f d0       	rcall	.+318    	; 0x202 <main>
-  c4:	b8 c0       	rjmp	.+368    	; 0x236 <_exit>
+  c2:	a8 d0       	rcall	.+336    	; 0x214 <main>
+  c4:	c3 c0       	rjmp	.+390    	; 0x24c <_exit>
 
 000000c6 <__bad_interrupt>:
   c6:	9c cf       	rjmp	.-200    	; 0x0 <__vectors>
@@ -349,9 +349,9 @@ void LCD_DisplayString( unsigned char column, const unsigned char* string) {
  176:	08 95       	ret
 
 00000178 <ADC_init>:
-unsigned char temp_val = 0x00;
 unsigned short temp_MV = 0x00;
 #include "io.c"
+
 
 void ADC_init() {
 	ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
@@ -363,8 +363,8 @@ void ADC_init() {
  182:	08 95       	ret
 
 00000184 <read>:
-	// the previous conversion completes.
 }
+
 
 
 void read(){
@@ -382,7 +382,7 @@ void read(){
  19e:	31 40       	sbci	r19, 0x01	; 1
  1a0:	ad ec       	ldi	r26, 0xCD	; 205
  1a2:	bc ec       	ldi	r27, 0xCC	; 204
- 1a4:	39 d0       	rcall	.+114    	; 0x218 <__umulhisi3>
+ 1a4:	44 d0       	rcall	.+136    	; 0x22e <__umulhisi3>
  1a6:	96 95       	lsr	r25
  1a8:	87 95       	ror	r24
  1aa:	96 95       	lsr	r25
@@ -390,101 +390,115 @@ void read(){
  1ae:	96 95       	lsr	r25
  1b0:	87 95       	ror	r24
  1b2:	80 93 64 01 	sts	0x0164, r24	; 0x800164 <temp_val>
-	if(temp_val < 10){
- 1b6:	8a 30       	cpi	r24, 0x0A	; 10
- 1b8:	28 f4       	brcc	.+10     	; 0x1c4 <read+0x40>
-		LCD_DisplayString(1,"temp less than 10");
- 1ba:	60 e0       	ldi	r22, 0x00	; 0
- 1bc:	71 e0       	ldi	r23, 0x01	; 1
- 1be:	81 e0       	ldi	r24, 0x01	; 1
- 1c0:	c2 cf       	rjmp	.-124    	; 0x146 <LCD_DisplayString>
- 1c2:	08 95       	ret
+	PORTB = 0x00;
+ 1b6:	15 b8       	out	0x05, r1	; 5
+	if(temp_val > 32){
+ 1b8:	80 91 64 01 	lds	r24, 0x0164	; 0x800164 <temp_val>
+ 1bc:	81 32       	cpi	r24, 0x21	; 33
+ 1be:	10 f0       	brcs	.+4      	; 0x1c4 <read+0x40>
+		PORTB = 0xFF;
+ 1c0:	8f ef       	ldi	r24, 0xFF	; 255
+ 1c2:	85 b9       	out	0x05, r24	; 5
 	}
-	else if((temp_val > 10) && (temp_val < 20)){
- 1c4:	25 ef       	ldi	r18, 0xF5	; 245
- 1c6:	28 0f       	add	r18, r24
- 1c8:	29 30       	cpi	r18, 0x09	; 9
+	if(temp_val < 10){
+ 1c4:	80 91 64 01 	lds	r24, 0x0164	; 0x800164 <temp_val>
+ 1c8:	8a 30       	cpi	r24, 0x0A	; 10
  1ca:	28 f4       	brcc	.+10     	; 0x1d6 <read+0x52>
-		LCD_DisplayString(1,"temp between 10 and 20");
- 1cc:	62 e1       	ldi	r22, 0x12	; 18
+		LCD_DisplayString(1,"temp less than 10");
+ 1cc:	60 e0       	ldi	r22, 0x00	; 0
  1ce:	71 e0       	ldi	r23, 0x01	; 1
  1d0:	81 e0       	ldi	r24, 0x01	; 1
  1d2:	b9 cf       	rjmp	.-142    	; 0x146 <LCD_DisplayString>
  1d4:	08 95       	ret
 	}
-	else if((temp_val > 20) && (temp_val < 25)){
- 1d6:	2b ee       	ldi	r18, 0xEB	; 235
- 1d8:	28 0f       	add	r18, r24
- 1da:	24 30       	cpi	r18, 0x04	; 4
-		LCD_DisplayString(1,"temp between 20 and 25");
+	else if((temp_val > 10) && (temp_val < 20)){
+ 1d6:	95 ef       	ldi	r25, 0xF5	; 245
+ 1d8:	98 0f       	add	r25, r24
+ 1da:	99 30       	cpi	r25, 0x09	; 9
  1dc:	28 f4       	brcc	.+10     	; 0x1e8 <read+0x64>
- 1de:	69 e2       	ldi	r22, 0x29	; 41
+		LCD_DisplayString(1,"temp between 10 and 20");
+ 1de:	62 e1       	ldi	r22, 0x12	; 18
  1e0:	71 e0       	ldi	r23, 0x01	; 1
  1e2:	81 e0       	ldi	r24, 0x01	; 1
  1e4:	b0 cf       	rjmp	.-160    	; 0x146 <LCD_DisplayString>
+ 1e6:	08 95       	ret
+	}
+	else if((temp_val > 20) && (temp_val < 25)){
+ 1e8:	9b ee       	ldi	r25, 0xEB	; 235
+ 1ea:	98 0f       	add	r25, r24
+ 1ec:	94 30       	cpi	r25, 0x04	; 4
+		LCD_DisplayString(1,"temp between 20 and 25");
+ 1ee:	28 f4       	brcc	.+10     	; 0x1fa <read+0x76>
+ 1f0:	69 e2       	ldi	r22, 0x29	; 41
+ 1f2:	71 e0       	ldi	r23, 0x01	; 1
+ 1f4:	81 e0       	ldi	r24, 0x01	; 1
+ 1f6:	a7 cf       	rjmp	.-178    	; 0x146 <LCD_DisplayString>
 	}
 	else if((temp_val > 25) && (temp_val < 30)){
- 1e6:	08 95       	ret
- 1e8:	8a 51       	subi	r24, 0x1A	; 26
+ 1f8:	08 95       	ret
+ 1fa:	8a 51       	subi	r24, 0x1A	; 26
 		LCD_DisplayString(1,"temp between 25 and 30");
- 1ea:	84 30       	cpi	r24, 0x04	; 4
- 1ec:	28 f4       	brcc	.+10     	; 0x1f8 <read+0x74>
- 1ee:	60 e4       	ldi	r22, 0x40	; 64
- 1f0:	71 e0       	ldi	r23, 0x01	; 1
- 1f2:	81 e0       	ldi	r24, 0x01	; 1
+ 1fc:	84 30       	cpi	r24, 0x04	; 4
+ 1fe:	28 f4       	brcc	.+10     	; 0x20a <read+0x86>
+ 200:	60 e4       	ldi	r22, 0x40	; 64
+ 202:	71 e0       	ldi	r23, 0x01	; 1
+ 204:	81 e0       	ldi	r24, 0x01	; 1
 	}
 	else{
 		LCD_DisplayString(1,"temp > 30");
- 1f4:	a8 cf       	rjmp	.-176    	; 0x146 <LCD_DisplayString>
- 1f6:	08 95       	ret
- 1f8:	67 e5       	ldi	r22, 0x57	; 87
- 1fa:	71 e0       	ldi	r23, 0x01	; 1
- 1fc:	81 e0       	ldi	r24, 0x01	; 1
- 1fe:	a3 cf       	rjmp	.-186    	; 0x146 <LCD_DisplayString>
- 200:	08 95       	ret
+ 206:	9f cf       	rjmp	.-194    	; 0x146 <LCD_DisplayString>
+ 208:	08 95       	ret
+ 20a:	67 e5       	ldi	r22, 0x57	; 87
+ 20c:	71 e0       	ldi	r23, 0x01	; 1
+ 20e:	81 e0       	ldi	r24, 0x01	; 1
+ 210:	9a cf       	rjmp	.-204    	; 0x146 <LCD_DisplayString>
+ 212:	08 95       	ret
 
-00000202 <main>:
+00000214 <main>:
 
 }
 
 int main(void)
 {
 	DDRA = 0x00; // Set port A to input
- 202:	11 b8       	out	0x01, r1	; 1
+ 214:	11 b8       	out	0x01, r1	; 1
 	PORTA = 0xFF; // Init port A to 0s
- 204:	8f ef       	ldi	r24, 0xFF	; 255
- 206:	82 b9       	out	0x02, r24	; 2
+ 216:	8f ef       	ldi	r24, 0xFF	; 255
+ 218:	82 b9       	out	0x02, r24	; 2
 	DDRC = 0xFF; PORTC = 0x00; // set as output for lcd
- 208:	87 b9       	out	0x07, r24	; 7
- 20a:	18 b8       	out	0x08, r1	; 8
+ 21a:	87 b9       	out	0x07, r24	; 7
+ 21c:	18 b8       	out	0x08, r1	; 8
 	DDRD = 0xFF; PORTD = 0x00; // LCD control lines
- 20c:	8a b9       	out	0x0a, r24	; 10
+ 21e:	8a b9       	out	0x0a, r24	; 10
+ 220:	1b b8       	out	0x0b, r1	; 11
+	DDRB = 0xFF; PORTD = 0x00;
+ 222:	84 b9       	out	0x04, r24	; 4
 	LCD_init();
- 20e:	1b b8       	out	0x0b, r1	; 11
- 210:	82 df       	rcall	.-252    	; 0x116 <LCD_init>
- 212:	b2 df       	rcall	.-156    	; 0x178 <ADC_init>
- 214:	b7 df       	rcall	.-146    	; 0x184 <read>
- 216:	fe cf       	rjmp	.-4      	; 0x214 <main+0x12>
+ 224:	1b b8       	out	0x0b, r1	; 11
+ 226:	77 df       	rcall	.-274    	; 0x116 <LCD_init>
+ 228:	a7 df       	rcall	.-178    	; 0x178 <ADC_init>
+ 22a:	ac df       	rcall	.-168    	; 0x184 <read>
+ 22c:	fe cf       	rjmp	.-4      	; 0x22a <main+0x16>
 
-00000218 <__umulhisi3>:
- 218:	a2 9f       	mul	r26, r18
- 21a:	b0 01       	movw	r22, r0
- 21c:	b3 9f       	mul	r27, r19
- 21e:	c0 01       	movw	r24, r0
- 220:	a3 9f       	mul	r26, r19
- 222:	70 0d       	add	r23, r0
- 224:	81 1d       	adc	r24, r1
- 226:	11 24       	eor	r1, r1
- 228:	91 1d       	adc	r25, r1
- 22a:	b2 9f       	mul	r27, r18
- 22c:	70 0d       	add	r23, r0
- 22e:	81 1d       	adc	r24, r1
- 230:	11 24       	eor	r1, r1
- 232:	91 1d       	adc	r25, r1
- 234:	08 95       	ret
+0000022e <__umulhisi3>:
+ 22e:	a2 9f       	mul	r26, r18
+ 230:	b0 01       	movw	r22, r0
+ 232:	b3 9f       	mul	r27, r19
+ 234:	c0 01       	movw	r24, r0
+ 236:	a3 9f       	mul	r26, r19
+ 238:	70 0d       	add	r23, r0
+ 23a:	81 1d       	adc	r24, r1
+ 23c:	11 24       	eor	r1, r1
+ 23e:	91 1d       	adc	r25, r1
+ 240:	b2 9f       	mul	r27, r18
+ 242:	70 0d       	add	r23, r0
+ 244:	81 1d       	adc	r24, r1
+ 246:	11 24       	eor	r1, r1
+ 248:	91 1d       	adc	r25, r1
+ 24a:	08 95       	ret
 
-00000236 <_exit>:
- 236:	f8 94       	cli
+0000024c <_exit>:
+ 24c:	f8 94       	cli
 
-00000238 <__stop_program>:
- 238:	ff cf       	rjmp	.-2      	; 0x238 <__stop_program>
+0000024e <__stop_program>:
+ 24e:	ff cf       	rjmp	.-2      	; 0x24e <__stop_program>
