@@ -1,55 +1,36 @@
-#include <stdint.h> 
-#include <stdlib.h> 
-#include <stdio.h> 
-#include <stdbool.h> 
-#include <string.h> 
-#include <math.h> 
-#include <avr/io.h> 
-#include <avr/interrupt.h> 
-#include <avr/eeprom.h> 
-#include <avr/portpins.h> 
-#include <avr/pgmspace.h> 
-#include "usart_ATmega1284.h"
+/*part2.c - [10/24/17]
+* Partner(s) Name & E-mail:Donald Weiss dweis003@ucr.edu
+*			     Paul Rodriguez prodr010@ucr.edu
+* Lab Section: 022
+* Assignment: Lab #5 Exercise #2 STEPPER_MOTOR
+* Exercise Description:
+
+*
+* I acknowledge all content contained herein, excluding template or example
+* code, is my own original work.
+*/
+
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <math.h>
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/eeprom.h>
+#include <avr/portpins.h>
+#include <avr/pgmspace.h>
+
+//FreeRTOS include files
+#include "FreeRTOS.h"
+#include "task.h"
+#include "croutine.h"
 #include "bit.h"
- 
-//FreeRTOS include files 
-#include "FreeRTOS.h" 
-#include "task.h" 
-#include "croutine.h" 
 
-// Pins on PORTA are used as input for A2D conversion
-//    The default channel is 0 (PA0)
-// The value of pinNum determines the pin on PORTA
-//    used for A2D conversion
-// Valid values range between 0 and 7, where the value
-//    represents the desired pin for A2D conversion
+unsigned char ARM_DISARM = 1;
 
-//FUNCTION TO INITIALIZE ADC
-void ADC_init() {
-	ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
-	// ADEN: setting this bit enables analog-to-digital conversion.
-	// ADSC: setting this bit starts the first conversion.
-	// ADATE: setting this bit enables auto-triggering. Since we are
-	// in Free Running Mode, a new conversion will trigger whenever
-	// the previous conversion completes.
-}
-
-
-//GLOBAL VARIABLES 
-
-unsigned char ARM_DISARM = 1; // when 0 system is disarmed, when 1 system is armed
-
-//Variables for temp read and sensors FSM
-unsigned char temp_reading = 0x00;
-unsigned char temp_val = 0x00;
-unsigned short temp_MV = 0x00;
-unsigned char temp_trip = 0;
-unsigned char IR_one_trip = 0;
-unsigned char IR_two_trip = 0;
-unsigned char button_one_trip = 0;
-unsigned char button_two_trip = 0;
-
-//variables for MOTOR FSMS
 int numPhases = 2048; //number of phases needed to rotate 180 deg
 //MOTOR 1 FSM VARIABLES
 unsigned char phases[8] = {0x01, 0x03, 0x02, 0x06, 0x04, 0x0C, 0x08,  0x09};
@@ -65,164 +46,6 @@ unsigned char p_index_2 = 0;
 int numCounter_2 = 0;
 unsigned char finished_reset_2 = 0;
 
-
-
-
-
-//READ TEMP FSM WHEN SYSTEM DISARMED
-enum TEMPState {T_Wait, Read_temp } temp_state;
-
-void TEMP_Init(){
-	temp_state = T_Wait;
-}
-
-void TEMP_Tick(){
-	//Actions
-	switch(temp_state){
-		case T_Wait:
-		break;
-
-
-		case Read_temp:
-		temp_MV = ADC * (5000/1024); //
-		temp_val = ((temp_MV - 500)/10); 
-		PORTD = temp_val; //for testing
-		break;
-		
-		default:
-		break;
-	}
-	//Transitions
-	switch(temp_state){
-		case T_Wait:
-			if(ARM_DISARM == 0){ //if system is disarmed read temp 
-				temp_state = Read_temp;
-			}
-			else{
-				temp_state = T_Wait;
-			}
-		break;
-
-		case Read_temp:
-			if(ARM_DISARM == 0){ //if system is disarmed read temp
-				temp_state = Read_temp;
-			}
-			else{
-				temp_state = T_Wait;
-			}
-		break;
-
-		default:
-			temp_state = T_Wait;
-		break;
-	}
-}
-
-void TempSecTask()
-{
-   TEMP_Init();
-   for(;;) 
-   { 	
-	TEMP_Tick();
-	vTaskDelay(10); 
-   } 
-}
-
-void StartTempPulse(unsigned portBASE_TYPE Priority)
-{
-	xTaskCreate(TempSecTask, (signed portCHAR *)"TempSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-}	
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//ARMED MODE FSM
-//READ TEMP FSM WHEN SYSTEM DISARMED
-enum ARMState {ARM_wait, read_sensors } arm_state;
-
-void ARM_Init(){
-	arm_state = T_Wait;
-}
-
-void ARM_Tick(){
-	//Actions
-	switch(arm_state){
-		case ARM_wait:
-		//initialize values, these values signal which sensor has been tripped
-		temp_trip = 0;
-		IR_one_trip = 0;
-		IR_two_trip = 0;
-		button_one_trip = 0;
-		button_two_trip = 0;
-		break;
-
-		case read_sensors:
-			temp_MV = ADC * (5000/1024);
-			temp_val = ((temp_MV - 500)/10);
-			PORTD = 0x00;
-			if(temp_val >= 32){ //fire detected about 90 F
-				temp_trip = 1; //fire detected trip
-				PORTD = 0x01;
-			}
-			if((GetBit(~PINC, 3) == 1)){ //IR 2
-				IR_two_trip = 1;
-				PORTD = 0x02;
-			}
-			if((GetBit(~PINC, 2) == 1)){ //IR 1
-				IR_one_trip = 1;
-				PORTD = 0x04;
-			}
-			if((GetBit(~PINC, 1) == 1)){ //button 2
-				button_two_trip = 1;
-				PORTD = 0x08;
-			}
-			if((GetBit(~PINC, 0) == 1)){ //button 1
-				button_one_trip = 1;
-				PORTD = 0x10;
-			}
-		break;
-		
-		default:
-		break;
-	}
-	//Transitions
-	switch(arm_state){
-		case ARM_wait:
-		if(ARM_DISARM == 1){ //enter armed mode
-			arm_state = read_sensors;
-		}
-		else{
-			arm_state = ARM_wait;
-		}
-		break;
-
-		case read_sensors:
-		if(ARM_DISARM == 1){ //enter armed mode
-			arm_state = read_sensors;
-		}
-		else{
-			arm_state = ARM_wait;
-		}
-		break;
-		
-		default:
-		arm_state = ARM_wait;
-		break;
-	}
-}
-
-void ARMSecTask()
-{
-	ARM_Init();
-	for(;;)
-	{
-		ARM_Tick();
-		vTaskDelay(10);
-	}
-}
-
-void StartARMPulse(unsigned portBASE_TYPE Priority)
-{
-	xTaskCreate(ARMSecTask, (signed portCHAR *)"ARMSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
-}
 
 //////////////////////////////////////////////////////////////
 //MOTOR 1 FSM
@@ -266,7 +89,7 @@ void Motor_Tick(){
 			}
 			
 		}
-		
+			
 		else{ //orientation == 0 go backwards
 			if(numCounter < numPhases){
 				++numCounter;
@@ -292,7 +115,7 @@ void Motor_Tick(){
 		break;
 
 		case m_reset:
-		if(orientation){ //forward orientation == 1 go back
+		if(orientation){ //forward orientation == 1 go back 
 			if(numCounter > 0){
 				--numCounter;
 				PORTB = phases[p_index];
@@ -332,7 +155,7 @@ void Motor_Tick(){
 			}
 		}
 		
-		
+			
 		break;
 		
 		default:
@@ -345,7 +168,7 @@ void Motor_Tick(){
 			motor_state = m_wait;
 		}
 		else{ //else turn on motors
-			motor_state = m_init;
+			motor_state = m_init; 
 		}
 		break;
 
@@ -556,23 +379,87 @@ void Motor2SecPulse(unsigned portBASE_TYPE Priority)
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum ButtonState {b_release, b_push} button_state;
 
- 
-int main(void) 
-{ 
-   ADC_init();
-   DDRA = 0x00; PORTA=0xFF;
-   DDRB = 0xFF; PORTB = 0x00;
-   DDRC = 0x00; PORTC=0xFF;
-   DDRD = 0xFF; PORTD = 0x00;
+void Button_Init(){
+	button_state = b_release;
+}
 
-   //Start Tasks  
-   MotorSecPulse(1);
-   Motor2SecPulse(1);
-   StartTempPulse(1);
-   StartARMPulse(1);
-    //RunSchedular 
-   vTaskStartScheduler(); 
- 
-   return 0; 
+void Button_Tick(){
+	//Transitions
+	switch(button_state){
+		case b_release:
+		if(GetBit(~PINC, 4) == 1){ // 
+			button_state = b_push;
+			if(ARM_DISARM == 1){
+				ARM_DISARM = 0;
+			}
+			else{
+				ARM_DISARM = 1;
+			}
+		}
+		else{
+			button_state = b_release;
+		}
+		break;
+
+		case b_push:
+		if(GetBit(~PINC, 4) == 1){ 
+			button_state = b_push;
+		}
+		else{
+			button_state = b_release;
+		}
+		break;
+
+		default:
+		button_state = b_release;
+		break;
+	}
+	
+	//Actions
+	switch(button_state){
+		case b_release:
+		PORTD = 0x00;
+		break;
+		case b_push:
+		PORTD =0xFF;
+		break;
+		default:
+		break;
+	}
+	
+	
+}
+
+void ButtonSecTask(){
+	
+	Button_Init();
+	for(;;){
+		Button_Tick();
+		vTaskDelay(10);
+	}
+}
+
+void ButtonSecPulse(unsigned portBASE_TYPE Priority){
+	xTaskCreate(ButtonSecTask, (signed portCHAR *)"ButtonSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
+
+int main(void)
+{
+	DDRC = 0x00; PORTC = 0xFF; 
+	DDRB = 0xFF; PORTB = 0x00; //output
+
+
+	
+	
+	//Start Tasks
+	MotorSecPulse(1);
+	Motor2SecPulse(1);
+	ButtonSecPulse(1);
+	//RunSchedular
+	vTaskStartScheduler();
+	
+	return 0;
 }
