@@ -49,6 +49,8 @@ unsigned char IR_two_trip = 0;
 unsigned char button_one_trip = 0;
 unsigned char button_two_trip = 0;
 
+unsigned char triggered_sensors = 0x00;
+
 //variables for MOTOR FSMS
 int numPhases = 2048; //number of phases needed to rotate 180 deg
 //MOTOR 1 FSM VARIABLES
@@ -65,12 +67,15 @@ unsigned char p_index_2 = 0;
 int numCounter_2 = 0;
 unsigned char finished_reset_2 = 0;
 
+//transmit FSM variables
+unsigned char data_to_transmit = 0x00;
+
 
 
 
 
 //READ TEMP FSM WHEN SYSTEM DISARMED
-enum TEMPState {T_Wait, Read_temp } temp_state;
+enum TEMPState {T_Wait, Read_temp, Wait_Trans_temp, Trans_Temp } temp_state;
 
 void TEMP_Init(){
 	temp_state = T_Wait;
@@ -84,9 +89,17 @@ void TEMP_Tick(){
 
 
 		case Read_temp:
-		temp_MV = ADC * (5000/1024); //
+		temp_MV = ADC * (5000/1024); 
 		temp_val = ((temp_MV - 500)/10); 
-		PORTD = temp_val; //for testing
+		//temp_val = 0x0F;
+		//PORTD = temp_val; //for testing
+		break;
+
+		case Wait_Trans_temp:
+		break;
+
+		case Trans_Temp:
+			USART_Send(temp_val, 0); //send temp via USART
 		break;
 		
 		default:
@@ -105,11 +118,26 @@ void TEMP_Tick(){
 
 		case Read_temp:
 			if(ARM_DISARM == 0){ //if system is disarmed read temp
-				temp_state = Read_temp;
+				temp_state = Wait_Trans_temp;
 			}
 			else{
 				temp_state = T_Wait;
 			}
+		break;
+	case Wait_Trans_temp:
+		if(USART_IsSendReady(0) && ARM_DISARM == 0){
+			temp_state = Trans_Temp;
+		}
+		else if(ARM_DISARM == 1){
+			temp_state = T_Wait;
+		}
+		else{
+			temp_state = Wait_Trans_temp;
+		}
+		break;
+
+		case Trans_Temp:
+			temp_state = T_Wait;
 		break;
 
 		default:
@@ -152,31 +180,32 @@ void ARM_Tick(){
 		IR_two_trip = 0;
 		button_one_trip = 0;
 		button_two_trip = 0;
+		triggered_sensors = 0x00;
 		break;
 
 		case read_sensors:
 			temp_MV = ADC * (5000/1024);
 			temp_val = ((temp_MV - 500)/10);
-			PORTD = 0x00;
+			//PORTD = 0x00;
 			if(temp_val >= 32){ //fire detected about 90 F
 				temp_trip = 1; //fire detected trip
-				PORTD = 0x01;
+				triggered_sensors = triggered_sensors | 0x01;
 			}
 			if((GetBit(~PINC, 3) == 1)){ //IR 2
 				IR_two_trip = 1;
-				PORTD = 0x02;
+				triggered_sensors = triggered_sensors | 0x02;
 			}
 			if((GetBit(~PINC, 2) == 1)){ //IR 1
 				IR_one_trip = 1;
-				PORTD = 0x04;
+				triggered_sensors = triggered_sensors | 0x04;
 			}
 			if((GetBit(~PINC, 1) == 1)){ //button 2
 				button_two_trip = 1;
-				PORTD = 0x08;
+				triggered_sensors = triggered_sensors | 0x08;
 			}
 			if((GetBit(~PINC, 0) == 1)){ //button 1
 				button_one_trip = 1;
-				PORTD = 0x10;
+				triggered_sensors = triggered_sensors | 0x10;
 			}
 		break;
 		
@@ -552,6 +581,140 @@ void Motor2SecPulse(unsigned portBASE_TYPE Priority)
 	xTaskCreate(MotorSecTask_2, (signed portCHAR *)"MotorSecTask_2", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//FSM to transmit data over USART
+enum TRANSState {Trans_Wait, Transmit_State } trans_state;
+
+void TRANS_Init(){
+	trans_state = Trans_Wait;
+}
+
+void Trans_Tick(){
+	//Actions
+	switch(trans_state){
+		case Trans_Wait:
+		break;
+
+
+		case Transmit_State:
+		USART_Send(triggered_sensors, 0);
+		break;
+		
+		default:
+		break;
+	}
+	//Transitions
+	switch(temp_state){
+			case Trans_Wait:
+			if(USART_IsSendReady(0) && ARM_DISARM == 1){ //if usart is ready and ARMED  proceed to next state
+				trans_state = Transmit_State;
+			}
+			else{
+				trans_state = Trans_Wait;
+			}
+			break;
+
+
+			case Transmit_State:
+			if(USART_HasTransmitted(0)){ //if data transmitted go back to wait
+				trans_state = Trans_Wait;
+			}
+			else{						//else stay till completion
+				trans_state = Transmit_State;
+			}
+			break;
+			
+			default:
+			trans_state = Trans_Wait;
+			break;
+
+		}
+
+}
+	
+
+void TransSecTask()
+{
+	TRANS_Init();
+	for(;;)
+	{
+		Trans_Tick();
+		vTaskDelay(10);
+	}
+}
+
+void TransSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(TransSecTask, (signed portCHAR *)"TransSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//RECEIVE FSM
+enum RECState {Rec_Wait, Receive_State } rec_state;
+
+void REC_Init(){
+	rec_state = Rec_Wait;
+}
+
+void Rec_Tick(){
+	//Actions
+	switch(rec_state){
+		case Rec_Wait:
+		break;
+
+
+		case Receive_State:
+		ARM_DISARM = USART_Receive(0); //receive data
+		USART_Flush(0); //flush so flag reset
+		break;
+		
+		default:
+		break;
+	}
+	//Transitions
+	switch(rec_state){
+		case Rec_Wait:
+			if(USART_HasReceived(0)){
+				rec_state = Receive_State; //if ready go to next state
+			}
+			else{
+				rec_state = Rec_Wait; //if not ready to receive data stay
+			}
+		break;
+
+
+		case Receive_State:
+			rec_state = Rec_Wait; //go back 
+		break;
+		
+		default:
+		rec_state = Rec_Wait;
+		break;
+	}
+
+}
+
+
+void RecSecTask()
+{
+	REC_Init();
+	for(;;)
+	{
+		Rec_Tick();
+		vTaskDelay(10);
+	}
+}
+
+void RecSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(RecSecTask, (signed portCHAR *)"RecSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
+
+
+
+
+
 
 
 
@@ -560,17 +723,21 @@ void Motor2SecPulse(unsigned portBASE_TYPE Priority)
  
 int main(void) 
 { 
-   ADC_init();
+   ADC_init(); //initialize ADC
+   initUSART(0);//Initialize USART 0
    DDRA = 0x00; PORTA=0xFF;
    DDRB = 0xFF; PORTB = 0x00;
    DDRC = 0x00; PORTC=0xFF;
-   DDRD = 0xFF; PORTD = 0x00;
+   //DDRD = 0xFF; PORTD = 0x00; //used by USART 0
 
    //Start Tasks  
+   //TransSecPulse(1);
    MotorSecPulse(1);
    Motor2SecPulse(1);
-   StartTempPulse(1);
    StartARMPulse(1);
+   StartTempPulse(1);
+   TransSecPulse(1);
+   //RecSecPulse(1);
     //RunSchedular 
    vTaskStartScheduler(); 
  
