@@ -37,7 +37,7 @@ void ADC_init() {
 
 //GLOBAL VARIABLES 
 
-unsigned char ARM_DISARM = 1; // when 0 system is disarmed, when 1 system is armed
+unsigned char ARM_DISARM = 0; // when 0 system is disarmed, when 1 system is armed
 
 //Variables for temp read and sensors FSM
 unsigned char temp_reading = 0x00;
@@ -69,6 +69,10 @@ unsigned char finished_reset_2 = 0;
 
 //transmit FSM variables
 unsigned char data_to_transmit = 0x00;
+
+//receive FSM data
+unsigned char received_data = 0x00;
+
 
 
 
@@ -664,7 +668,15 @@ void Rec_Tick(){
 
 
 		case Receive_State:
-		ARM_DISARM = USART_Receive(0); //receive data
+		//ARM_DISARM = USART_Receive(0); //receive data
+		 received_data = USART_Receive(0);
+		if( received_data == 0xFF){ //ARM SYSTEM
+			ARM_DISARM = 1;
+		}
+		else{							//DISARM SYSTEM
+			ARM_DISARM = 0;
+		}
+	
 		USART_Flush(0); //flush so flag reset
 		break;
 		
@@ -731,13 +743,13 @@ int main(void)
    //DDRD = 0xFF; PORTD = 0x00; //used by USART 0
 
    //Start Tasks  
-   //TransSecPulse(1);
+   TransSecPulse(1);
    MotorSecPulse(1);
    Motor2SecPulse(1);
    StartARMPulse(1);
    StartTempPulse(1);
    TransSecPulse(1);
-   //RecSecPulse(1);
+   RecSecPulse(1);
     //RunSchedular 
    vTaskStartScheduler(); 
  
