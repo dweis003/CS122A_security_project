@@ -608,7 +608,7 @@ void Trans_Tick(){
 		break;
 	}
 	//Transitions
-	switch(temp_state){
+	switch(trans_state){
 			case Trans_Wait:
 			if(USART_IsSendReady(0) && ARM_DISARM == 1){ //if usart is ready and ARMED  proceed to next state
 				trans_state = Transmit_State;
