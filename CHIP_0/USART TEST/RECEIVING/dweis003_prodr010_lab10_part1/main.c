@@ -78,12 +78,14 @@ int SMTick1(int state) {
 		case off: 
 			LED_val = 0;
 			PORTA = 0x00;
+			LCD_DisplayString(1, "system is disarmed!");
 		break;
 		
 
 		case on:
 			LED_val = 1;
 			PORTA = 0x01;
+			LCD_DisplayString(1, "system is armed!");
 		break;
 		
 		default: break;
@@ -147,6 +149,9 @@ int main()
 
 	DDRA = 0xFF; PORTA = 0x00; // PORTA set to output, outputs init 0s
 	//DDRC = 0xF0; PORTC = 0x0F; // PC7..4 outputs init 0s, PC3..0 inputs init 1s
+	DDRC = 0xFF; PORTC = 0x00; // set as output for lcd
+	DDRD = 0xFF; PORTD = 0x00; // LCD control lines
+	LCD_init();
 
 	// . . . etc
 	// Period for the tasks
@@ -178,6 +183,7 @@ int main()
 	// Set the timer and turn it on
 	TimerSet(GCD);
 	TimerOn();
+	
 
 	//code to initialize USART
 

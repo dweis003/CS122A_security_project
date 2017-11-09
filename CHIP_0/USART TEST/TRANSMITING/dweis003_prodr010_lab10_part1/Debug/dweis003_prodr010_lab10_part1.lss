@@ -336,7 +336,7 @@ Disassembly of section .text:
  278:	29 f0       	breq	.+10     	; 0x284 <SMTick1+0x38>
  27a:	0d c0       	rjmp	.+26     	; 0x296 <SMTick1+0x4a>
  27c:	80 91 0f 01 	lds	r24, 0x010F	; 0x80010f <received_val>
- 280:	85 b9       	out	0x05, r24	; 5
+ 280:	82 b9       	out	0x02, r24	; 2
  282:	09 c0       	rjmp	.+18     	; 0x296 <SMTick1+0x4a>
  284:	80 e0       	ldi	r24, 0x00	; 0
  286:	d0 df       	rcall	.-96     	; 0x228 <USART_Receive>
@@ -344,7 +344,7 @@ Disassembly of section .text:
  28c:	80 e0       	ldi	r24, 0x00	; 0
  28e:	af df       	rcall	.-162    	; 0x1ee <USART_Flush>
  290:	80 91 0f 01 	lds	r24, 0x010F	; 0x80010f <received_val>
- 294:	85 b9       	out	0x05, r24	; 5
+ 294:	82 b9       	out	0x02, r24	; 2
  296:	ce 01       	movw	r24, r28
  298:	df 91       	pop	r29
  29a:	cf 91       	pop	r28
@@ -356,10 +356,10 @@ Disassembly of section .text:
 int main()
 {
 
-	DDRB = 0xFF; PORTB = 0x00; // PORTA set to output, outputs init 0s
+	DDRA = 0xFF; PORTA = 0x00; // PORTA set to output, outputs init 0s
  29e:	8f ef       	ldi	r24, 0xFF	; 255
- 2a0:	84 b9       	out	0x04, r24	; 4
- 2a2:	15 b8       	out	0x05, r1	; 5
+ 2a0:	81 b9       	out	0x01, r24	; 1
+ 2a2:	12 b8       	out	0x02, r1	; 2
  2a4:	00 e0       	ldi	r16, 0x00	; 0
  2a6:	10 e0       	ldi	r17, 0x00	; 0
  2a8:	d0 e0       	ldi	r29, 0x00	; 0

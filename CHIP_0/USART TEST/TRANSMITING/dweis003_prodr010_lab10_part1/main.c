@@ -81,14 +81,14 @@ int SMTick1(int state) {
 	//State machine actions
 	switch(state) {
 		case wait: 
-			PORTB = received_val;
+			PORTA = received_val;
 		break;
 		
 
 		case receive:
 			received_val = USART_Receive(0); //store received value
 			USART_Flush(0); //delete received val from register
-			PORTB = received_val;
+			PORTA = received_val;
 		break;
 		
 		default: break;
@@ -103,7 +103,7 @@ int SMTick1(int state) {
 int main()
 {
 
-	DDRB = 0xFF; PORTB = 0x00; // PORTA set to output, outputs init 0s
+	DDRA = 0xFF; PORTA = 0x00; // PORTA set to output, outputs init 0s
 	//DDRC = 0xF0; PORTC = 0x0F; // PC7..4 outputs init 0s, PC3..0 inputs init 1s
 
 

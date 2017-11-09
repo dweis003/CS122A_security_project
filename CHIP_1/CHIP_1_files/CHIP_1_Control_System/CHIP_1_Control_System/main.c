@@ -46,7 +46,11 @@ unsigned char random_pass_LCD_data[32] = {'R', 'A', 'N', 'D', 'O', 'M', ' ', 'P'
 ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
 
 
-unsigned char mode = 0; // 0 password to arm/disarm 1 password confirm for user pass 2 password confirm for random pass
+unsigned char mode = 0; // 0 password to arm/disarm 1 password confirm for user pass 2 password confirm for random pass/ 3 for alarm tripped
+
+//tripped sensor FSM
+unsigned char sensors_tripped[5] = {0,0,0,0,0};
+unsigned char trip_location = 0;
 
 //menu data
 unsigned char keypad_val = 0x00;
@@ -319,7 +323,7 @@ void Trans_Tick(){
 				data_to_send = 0xFF; //if armed send 0xFF to CHIP 0
 			}
 			else{
-				data_to_send = 0x00; //if disarmed send 0x00 to CHIP 0
+				data_to_send = 0xFF; //if disarmed send 0x00 to CHIP 0
 			}
 			trans_state = Transmit_State;
 		}
@@ -499,7 +503,7 @@ void TempSecPulse(unsigned portBASE_TYPE Priority)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //menu FSM
-enum MENUState {init_menu, main_menu_armed, main_menu_disarmed, arm_or_disarm, pass_enter, reset_pass, choice, user_pass, user_pass_wait, random_pass} menu_state;
+enum MENUState {init_menu, main_menu_armed, main_menu_disarmed, arm_or_disarm, pass_enter, reset_pass, choice, user_pass, user_pass_wait, random_pass, sensor_is_tripped} menu_state;
 
 void Menu_Init(){
 	menu_state = init_menu;
@@ -536,6 +540,9 @@ void Menu_Tick(){
 		break;
 
 		case random_pass:
+		break;
+		
+		case sensor_is_tripped:
 		break;
 		
 		default:
@@ -586,7 +593,11 @@ void Menu_Tick(){
 		keypad_val = GetKeypadKey();
 		PORTB = 0xFF;
 		menu_state = main_menu_armed;
-		if(keypad_val == '\0' || keypad_val == 'B' || keypad_val == 'C' || keypad_val == 'D' ){ //stay here
+		if(sensors_tripped[0] == 1 || sensors_tripped[1] == 1 ||sensors_tripped[2] == 1 ||sensors_tripped[3] == 1 ||sensors_tripped[4] == 1 ){
+			menu_state = sensor_is_tripped;
+			LCD_DisplayString(1, "Tripped Sensor(s)");
+		}
+		else if(keypad_val == '\0' || keypad_val == 'B' || keypad_val == 'C' || keypad_val == 'D' ){ //stay here
 			menu_state = main_menu_armed;
 			LCD_DisplayString(1, "system is armed!");
 		}
@@ -604,9 +615,13 @@ void Menu_Tick(){
 			PassKey_LCD_data[18] = ' ';
 			PassKey_LCD_data[19] = ' ';
 		}
+		///////////////////////////////////////////////////////////////
+		//added so armed state can now detect tripped sensors
+		
 		else{						//some other invalid key is pressed
 			menu_state = main_menu_armed;
 			LCD_DisplayString(1, "system is armed!");
+			trip_location = 0; //reset location
 		}
 		break;
 
@@ -683,6 +698,23 @@ void Menu_Tick(){
 			else if((check_password() == 0 && mode == 2)){
 				menu_state = reset_pass;
 				LCD_DisplayString(1, "* User Password or # Random Password");
+			}
+			else if((check_password() == 1 && mode == 3)){
+				menu_state = main_menu_disarmed; //user entered correct passkey disarm and go back to main menu
+				ARM_DISARM = 0;
+			}
+			else if((check_password() == 0 && mode == 3)){
+				menu_state = arm_or_disarm; //incorrect passkey try again
+				//reset values for passkey input
+				pass_location = 0;
+				user_input[0] = NULL;
+				user_input[1] = NULL;
+				user_input[2] = NULL;
+				user_input[3] = NULL;
+				PassKey_LCD_data[16] = ' ';
+				PassKey_LCD_data[17] = ' ';
+				PassKey_LCD_data[18] = ' ';
+				PassKey_LCD_data[19] = ' ';
 			}
 
 		}
@@ -810,6 +842,56 @@ void Menu_Tick(){
 			menu_state = random_pass;
 		}
 		break;
+
+		case sensor_is_tripped:
+		menu_state = sensor_is_tripped;
+		if(sensors_tripped[0] == 1){
+			LCD_Cursor(18);
+			LCD_WriteData(1 + '0');
+			LCD_Cursor(33); //move off screen
+		}
+		if(sensors_tripped[1] == 1){
+			LCD_Cursor(20);
+			LCD_WriteData(2 + '0');
+			LCD_Cursor(33); //move off screen
+		}
+		if(sensors_tripped[2] == 1){
+			LCD_Cursor(22);
+			LCD_WriteData(3 + '0');
+			LCD_Cursor(33); //move off screen
+		}
+		if(sensors_tripped[3] == 1){
+			LCD_Cursor(24);
+			LCD_WriteData(4 + '0');
+			LCD_Cursor(33); //move off screen
+		}
+		if(sensors_tripped[4] == 1){
+			LCD_Cursor(26);
+			LCD_WriteData(5 + '0');
+			LCD_Cursor(33); //move off screen
+		}
+		keypad_val = GetKeypadKey();
+		//add ability to reset via password input
+		if(keypad_val == 'A'){ //user wants to input password to turn off alarm
+			menu_state = arm_or_disarm;
+			pass_location = 0;
+			user_input[0] = NULL;
+			user_input[1] = NULL;
+			user_input[2] = NULL;
+			user_input[3] = NULL;
+			PassKey_LCD_data[16] = ' ';
+			PassKey_LCD_data[17] = ' ';
+			PassKey_LCD_data[18] = ' ';
+			PassKey_LCD_data[19] = ' '; 
+			mode = 3; 
+		}
+		else{                    //either no or invalid input user stays in this mode
+			menu_state = sensor_is_tripped;
+		}
+		
+		
+		break;
+
 		
 		default:
 		break;
@@ -835,6 +917,95 @@ void MenuSecPulse(unsigned portBASE_TYPE Priority)
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//detect triggered sensors when armed
+enum SENSEState {sense_wait, sense_detect} sense_state;
+
+void sense_Init(){
+	sense_state = sense_wait;
+}
+
+void Sense_Tick(){
+	//Actions
+	switch(sense_state){
+		case sense_wait:
+		//do nothing
+		break;
+
+
+		case sense_detect:
+		//check received value from CHIP0
+		if(GetBit(received_value,0) == 1){
+			sensors_tripped[0] = 1;
+		}
+		if(GetBit(received_value,1) == 1){
+			sensors_tripped[1] = 1;
+		}
+		if(GetBit(received_value,2) == 1){
+			sensors_tripped[2] = 1;
+		}
+		if(GetBit(received_value,3) == 1){
+			sensors_tripped[3] = 1;
+		}
+		if(GetBit(received_value,4) == 1){
+			sensors_tripped[4] = 1;
+		}
+		break;
+		
+		default:
+		break;
+	}
+	//Transitions
+	switch(sense_state){
+		case sense_wait:
+			if (ARM_DISARM == 1){ //system is armed detect tripped sensors
+				sense_state = sense_detect;
+				//reset values
+				sensors_tripped[0] = 0;
+				sensors_tripped[1] = 0;
+				sensors_tripped[2] = 0;
+				sensors_tripped[3] = 0;
+				sensors_tripped[4] = 0;
+			}
+			else{
+				sense_state = sense_detect;
+			}
+		break;
+
+
+		case sense_detect:
+			if (ARM_DISARM == 1){ //system is armed detect tripped sensors
+				sense_state = sense_detect;
+			}
+			else{
+				sense_state = sense_detect;
+			}
+		break;
+		
+		default:
+			sense_state = sense_wait;
+		break;
+	}
+
+}
+
+
+void SenseSecTask()
+{
+	sense_Init();
+	for(;;)
+	{
+		Sense_Tick();
+		vTaskDelay(50);
+	}
+}
+
+void SenseSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(SenseSecTask, (signed portCHAR *)"SenseSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(void) 
 { 
    DDRA = 0xF0; PORTA = 0x0F; // PC7..4 outputs init 0s, PC3..0 inputs init 1s FOR KEYPAD
@@ -847,10 +1018,11 @@ int main(void)
    //LCD_DisplayString(1, Disarmed_LCD_data);
   
    //Start Tasks  
-   //TransSecPulse(1);
+   TransSecPulse(1);
    //RecSecPulse(1);
 
-   MenuSecPulse(1);
+   //MenuSecPulse(1);
+   //SenseSecPulse(1);
     //RunSchedular 
    vTaskStartScheduler(); 
  
