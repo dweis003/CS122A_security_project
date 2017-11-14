@@ -21,6 +21,7 @@ main.d main.o: .././main.c \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\eeprom.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\pgmspace.h \
  .././usart_ATmega1284.h .././bit.h .././keypad.h .././io.c .././io.h \
+ .././matrix_print_function.h .././shift.h .././matrix.h \
  C:\Users\owner\Dropbox\CS122A\DONFIN~1\CS122A~1\FreeRTOS\FREERT~1\FreeRTOS\Source\include/FreeRTOS.h \
  C:\Users\owner\Dropbox\CS122A\DONFIN~1\CS122A~1\FreeRTOS\FREERT~1\FreeRTOS\Source\include/projdefs.h \
  C:\Users\owner\Dropbox\CS122A\DONFIN~1\CS122A~1\FreeRTOS\FREERT~1\FreeRTOS\Source/FreeRTOSConfig.h \
@@ -82,6 +83,12 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\
 .././io.c:
 
 .././io.h:
+
+.././matrix_print_function.h:
+
+.././shift.h:
+
+.././matrix.h:
 
 C:\Users\owner\Dropbox\CS122A\DONFIN~1\CS122A~1\FreeRTOS\FREERT~1\FreeRTOS\Source\include/FreeRTOS.h:
 

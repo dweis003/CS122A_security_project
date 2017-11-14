@@ -13,6 +13,9 @@
 #include "bit.h"
 #include "keypad.h"
 #include "io.c" //contains lcd.h file
+#include "matrix_print_function.h" //links other header files needed for matrix "print_matrix()"
+//#include "eeprom.h"  //code taken from * Author: ExploreEmbedded* Website: http://www.exploreembedded.com/wiki
+//#include "eeprom.c" 
  
 //FreeRTOS include files 
 #include "FreeRTOS.h" 
@@ -51,6 +54,8 @@ unsigned char mode = 0; // 0 password to arm/disarm 1 password confirm for user 
 //tripped sensor FSM
 unsigned char sensors_tripped[5] = {0,0,0,0,0};
 unsigned char trip_location = 0;
+unsigned char sensor_delay_count = 0;
+unsigned char sensor_trip = 0; //0 no trip 1 = trip;
 
 //menu data
 unsigned char keypad_val = 0x00;
@@ -61,6 +66,33 @@ unsigned char current_pass[4] = {1,2,3,4};
 unsigned char user_input[4] = {' ', ' ', ' ', ' '};
 unsigned char generated_pass[4] = {4, 3, 2, 1}; //{' ', ' ', ' ', ' '};
 
+//data for matrix function
+int matrix_array_lock[8][8] = {
+	{0,0,0,1,1,0,0,0},
+	{0,0,1,0,0,1,0,0},
+	{0,1,0,0,0,0,1,0},
+	{0,1,0,0,0,0,1,0},
+	{0,1,1,1,1,1,1,0},
+	{0,1,1,0,0,1,1,0},
+	{0,1,1,0,0,1,1,0},
+	{0,1,1,1,1,1,1,0},
+};
+
+int matrix_array_unlock[8][8] = {
+	{0,0,0,1,1,0,0,0},
+	{0,0,1,0,0,1,0,0},
+	{0,0,0,0,0,0,1,0},
+	{0,0,0,0,0,0,1,0},
+	{0,1,1,1,1,1,1,0},
+	{0,1,1,0,0,1,1,0},
+	{0,1,1,0,0,1,1,0},
+	{0,1,1,1,1,1,1,0},
+};
+//buzzer pwm data
+unsigned char buzzer_counter = 0;
+unsigned char buzzer_hign_period = 50;
+unsigned char buzzer_low_period = 50;
+unsigned char buzz_off_period = 250; 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //functions
@@ -236,51 +268,71 @@ void output_for_user_pass_reset(unsigned char value, unsigned char location){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(0 + '0');
 		current_pass[location] = 0;
+		//update eeprom
+		eeprom_write_byte(location,0);  
 	}
 	else if(value == '1'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(1 + '0');
 		current_pass[location] = 1;
+		//update eeprom
+		eeprom_write_byte(location,1);  
 	}
 	else if(value == '2'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(2 + '0');
 		current_pass[location] = 2;
+		//update eeprom
+		eeprom_write_byte(location,2);
 	}
 	else if(value == '3'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(3 + '0');
 		current_pass[location] = 3;
+		//update eeprom
+		eeprom_write_byte(location,3);
 	}
 	else if(value == '4'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(4 + '0');
 		current_pass[location] = 4;
+		//update eeprom
+		eeprom_write_byte(location,4);
 	}
 	else if(value == '5'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(5 + '0');
 		current_pass[location] = 5;
+		//update eeprom
+		eeprom_write_byte(location,5);
 	}
 	else if(value == '6'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(6 + '0');
 		current_pass[location] = 6;
+		//update eeprom
+		eeprom_write_byte(location,6);
 	}
 	else if(value == '7'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(7 + '0');
 		current_pass[location] = 7;
+		//update eeprom
+		eeprom_write_byte(location,7);
 	}
 	else if(value == '8'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(8 + '0');
 		current_pass[location] = 8;
+		//update eeprom
+		eeprom_write_byte(location,8);
 	}
 	else{
 		LCD_Cursor(17 + location);
 		LCD_WriteData(9 + '0');
 		current_pass[location] = 9;
+		//update eeprom
+		eeprom_write_byte(location,9);
 	}
 }
 
@@ -323,7 +375,7 @@ void Trans_Tick(){
 				data_to_send = 0xFF; //if armed send 0xFF to CHIP 0
 			}
 			else{
-				data_to_send = 0xFF; //if disarmed send 0x00 to CHIP 0
+				data_to_send = 0x00; //if disarmed send 0x00 to CHIP 0
 			}
 			trans_state = Transmit_State;
 		}
@@ -558,7 +610,8 @@ void Menu_Tick(){
 
 		case main_menu_disarmed:
 		keypad_val = GetKeypadKey();
-		PORTB = 0x00;
+		//PORTB = 0x00;
+		//print_matrix(matrix_array_lock);
 		if(keypad_val == '\0' ){ //null stay here
 			menu_state = main_menu_disarmed;
 			output_temp(received_value); //menu output with temp when disarmed
@@ -591,7 +644,7 @@ void Menu_Tick(){
 
 		case main_menu_armed:
 		keypad_val = GetKeypadKey();
-		PORTB = 0xFF;
+		//PORTB = 0xFF;
 		menu_state = main_menu_armed;
 		if(sensors_tripped[0] == 1 || sensors_tripped[1] == 1 ||sensors_tripped[2] == 1 ||sensors_tripped[3] == 1 ||sensors_tripped[4] == 1 ){
 			menu_state = sensor_is_tripped;
@@ -833,6 +886,11 @@ void Menu_Tick(){
 			current_pass[1] = generated_pass[1];
 			current_pass[2] = generated_pass[2];
 			current_pass[3] = generated_pass[3];
+			//update eeprom
+			eeprom_write_byte(0,current_pass[0]);  //address 0
+			eeprom_write_byte(1,current_pass[1]);  //address 1
+			eeprom_write_byte(2,current_pass[2]);  //address 2
+			eeprom_write_byte(3,current_pass[3]);  //address 3
 			menu_state = main_menu_disarmed;
 		}
 		else if(keypad_val == 'C'){ //user did not accept new passkey
@@ -918,7 +976,7 @@ void MenuSecPulse(unsigned portBASE_TYPE Priority)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //detect triggered sensors when armed
-enum SENSEState {sense_wait, sense_detect} sense_state;
+enum SENSEState {sense_init, sense_wait, sense_detect} sense_state;
 
 void sense_Init(){
 	sense_state = sense_wait;
@@ -927,6 +985,11 @@ void sense_Init(){
 void Sense_Tick(){
 	//Actions
 	switch(sense_state){
+		case sense_init:
+		//do nothing
+		sensor_trip = 0;
+		break;
+
 		case sense_wait:
 		//do nothing
 		break;
@@ -936,18 +999,23 @@ void Sense_Tick(){
 		//check received value from CHIP0
 		if(GetBit(received_value,0) == 1){
 			sensors_tripped[0] = 1;
+			sensor_trip= 1;
 		}
 		if(GetBit(received_value,1) == 1){
 			sensors_tripped[1] = 1;
+			sensor_trip = 1;
 		}
 		if(GetBit(received_value,2) == 1){
 			sensors_tripped[2] = 1;
+			sensor_trip = 1;
 		}
 		if(GetBit(received_value,3) == 1){
 			sensors_tripped[3] = 1;
+			sensor_trip = 1;
 		}
 		if(GetBit(received_value,4) == 1){
 			sensors_tripped[4] = 1;
+			sensor_trip = 1;
 		}
 		break;
 		
@@ -956,8 +1024,31 @@ void Sense_Tick(){
 	}
 	//Transitions
 	switch(sense_state){
+		case sense_init:
+		if(ARM_DISARM == 1){
+			sense_state = sense_wait;
+		}
+		else{
+			sense_state = sense_init;
+			sensors_tripped[0] = 0;
+			sensors_tripped[1] = 0;
+			sensors_tripped[2] = 0;
+			sensors_tripped[3] = 0;
+			sensors_tripped[4] = 0;
+			sensor_delay_count = 0;
+		}
+		break;
+
 		case sense_wait:
-			if (ARM_DISARM == 1){ //system is armed detect tripped sensors
+			++sensor_delay_count;
+			if(ARM_DISARM == 0){			//if disarmed go back to init
+				sense_state = sense_init;
+				sensor_delay_count = 0; //initialize
+			}
+			else if(sensor_delay_count < 10){ //let chip 0 have time to send correct data
+				sense_state = sense_wait;
+			}
+			else{ //ready
 				sense_state = sense_detect;
 				//reset values
 				sensors_tripped[0] = 0;
@@ -965,9 +1056,7 @@ void Sense_Tick(){
 				sensors_tripped[2] = 0;
 				sensors_tripped[3] = 0;
 				sensors_tripped[4] = 0;
-			}
-			else{
-				sense_state = sense_detect;
+				sensor_delay_count = 0;
 			}
 		break;
 
@@ -977,12 +1066,12 @@ void Sense_Tick(){
 				sense_state = sense_detect;
 			}
 			else{
-				sense_state = sense_detect;
+				sense_state = sense_init;
 			}
 		break;
 		
 		default:
-			sense_state = sense_wait;
+			sense_state = sense_init;
 		break;
 	}
 
@@ -995,7 +1084,7 @@ void SenseSecTask()
 	for(;;)
 	{
 		Sense_Tick();
-		vTaskDelay(50);
+		vTaskDelay(200);
 	}
 }
 
@@ -1003,6 +1092,164 @@ void SenseSecPulse(unsigned portBASE_TYPE Priority)
 {
 	xTaskCreate(SenseSecTask, (signed portCHAR *)"SenseSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//detect triggered sensors when armed
+enum MATRIXState {output_matrix} matrix_state;
+
+void matrix_Init(){
+	matrix_state = output_matrix;
+}
+
+void Matrix_Tick(){
+	//Actions
+	switch(matrix_state){
+		case output_matrix:
+		if(ARM_DISARM == 1){ //2 images selected depending on whether armed or disarmed
+			print_matrix(matrix_array_lock);
+		}
+		else{
+			print_matrix(matrix_array_unlock);
+		}
+		break;
+
+		default:
+		break;
+	}
+	//Transitions
+	switch(matrix_state){
+		case output_matrix:
+		matrix_state = output_matrix;
+
+		default:
+		matrix_state = output_matrix;
+		break;
+	}
+
+}
+void MatrixSecTask()
+{
+	matrix_Init();
+	for(;;)
+	{
+		Matrix_Tick();
+		vTaskDelay(1);
+	}
+}
+
+void MatrixSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(MatrixSecTask, (signed portCHAR *)"MatrixSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//buzz when sensor tripped
+enum BUZZERState {buzz_wait, no_buzz, buzz_high, buzz_low} buzzer_state;
+
+void buzz_Init(){
+	buzzer_state = buzz_wait;
+}
+
+void Buzz_Tick(){
+	//Actions
+	switch(buzzer_state){
+		case buzz_wait:
+		break;
+
+		case no_buzz:
+			++buzzer_counter;
+		break;
+
+		case buzz_high:
+			++buzzer_counter;
+			PORTB = PORTB|0x10;  //set PIN B4 to 1
+		break;
+
+		case buzz_low:
+			++buzzer_counter;    //set PIN B4 to 0
+			PORTB = PORTB & 0xEF; 
+		break;
+
+		default:
+		break;
+	}
+	//Transitions
+	switch(buzzer_state){
+		case buzz_wait:
+		if(ARM_DISARM == 0){
+			buzzer_state = buzz_wait;
+		}
+		else if(sensor_trip == 1 && ARM_DISARM == 1){
+			buzzer_state = no_buzz;
+			buzzer_counter = 0; //initialize counter
+		}
+		else if(sensor_trip == 0 && ARM_DISARM == 1){
+			buzzer_state = buzz_wait;
+			buzzer_counter = 0; //initialize counter
+		}
+		break;
+
+		case no_buzz:            //if disarmed no buzz go back
+		if(ARM_DISARM == 0){
+			buzzer_state = buzz_wait;
+		}						//if counter less than off period stay
+		else if(buzzer_counter < buzz_off_period){
+			buzzer_state = no_buzz;
+		}
+		else{					//else go to buzzer high
+			buzzer_state = buzz_high;
+			buzzer_counter = 0; //initialize counter
+		}
+		break;
+
+		case buzz_high:
+		if(buzzer_counter < buzzer_hign_period){
+			buzzer_state = buzz_high;
+		}
+		else{					//else go to buzzer high
+			buzzer_state = buzz_low;
+			buzzer_counter = 0; //initialize counter
+		}
+		break;
+
+		case buzz_low:
+		if(ARM_DISARM == 0){    //if system is disarmed turn off alarm
+			buzzer_state = buzz_wait;
+		}
+		else if(buzzer_counter < buzzer_low_period){
+			buzzer_state = buzz_low;
+		}
+		else{					//else go to buzzer high
+			buzzer_state = buzz_high;
+			buzzer_counter = 0; //initialize counter
+		}
+		break;
+
+		default:
+		buzzer_state = buzz_wait;
+		break;
+	}
+
+}
+
+
+void BuzzSecTask()
+{
+	buzz_Init();
+	for(;;)
+	{
+		Buzz_Tick();
+		vTaskDelay(1);
+	}
+}
+
+void BuzzSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(BuzzSecTask, (signed portCHAR *)"BuzzSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1012,17 +1259,32 @@ int main(void)
    DDRC = 0xFF; PORTC = 0x00; // set as output for lcd
    DDRD = 0xFF; PORTD = 0x00; // LCD control lines
    DDRB = 0xFF; PORTB = 0x00;
+   //EEPROM
+  //eeprom_write_byte(0,1);  //address 0
+  //eeprom_write_byte(1,2);  //address 1
+  //eeprom_write_byte(2,3);  //address 2
+  //eeprom_write_byte(3,4);  //address 3
+
+  current_pass[0] = eeprom_read_byte(0);
+  current_pass[1] = eeprom_read_byte(1);
+  current_pass[2] = eeprom_read_byte(2);
+  current_pass[3] = eeprom_read_byte(3);
+
+  unsigned char temp = eeprom_read_byte(0);
 
    //LCD init
    LCD_init();
-   //LCD_DisplayString(1, Disarmed_LCD_data);
+   //init USART
+   initUSART(0);     
+  
   
    //Start Tasks  
    TransSecPulse(1);
-   //RecSecPulse(1);
-
-   //MenuSecPulse(1);
-   //SenseSecPulse(1);
+   RecSecPulse(1);
+   MatrixSecPulse(1);
+   MenuSecPulse(1);
+   SenseSecPulse(1);
+   BuzzSecPulse(1);
     //RunSchedular 
    vTaskStartScheduler(); 
  

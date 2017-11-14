@@ -500,9 +500,9 @@ END GROUP
 .debug_pubnames
  *(.debug_pubnames)
 
-.debug_info     0x00000000      0x8b7
+.debug_info     0x00000000      0x8b8
  *(.debug_info .gnu.linkonce.wi.*)
- .debug_info    0x00000000      0x8b7 main.o
+ .debug_info    0x00000000      0x8b8 main.o
 
 .debug_abbrev   0x00000000      0x2ca
  *(.debug_abbrev)

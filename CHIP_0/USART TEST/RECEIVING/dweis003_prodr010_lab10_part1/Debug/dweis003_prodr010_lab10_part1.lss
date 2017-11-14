@@ -15,11 +15,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY
   5 .debug_aranges 000000e0  00000000  00000000  00000594  2**0
                   CONTENTS, READONLY, DEBUGGING
-  6 .debug_info   000008b7  00000000  00000000  00000674  2**0
+  6 .debug_info   000008b8  00000000  00000000  00000674  2**0
                   CONTENTS, READONLY, DEBUGGING
-  7 .debug_abbrev 000002ca  00000000  00000000  00000f2b  2**0
+  7 .debug_abbrev 000002ca  00000000  00000000  00000f2c  2**0
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_line   0000064c  00000000  00000000  000011f5  2**0
+  8 .debug_line   0000064c  00000000  00000000  000011f6  2**0
                   CONTENTS, READONLY, DEBUGGING
   9 .debug_frame  00000208  00000000  00000000  00001844  2**2
                   CONTENTS, READONLY, DEBUGGING
@@ -443,11 +443,11 @@ Disassembly of section .text:
  336:	81 30       	cpi	r24, 0x01	; 1
  338:	21 f4       	brne	.+8      	; 0x342 <SMTick2+0x54>
  33a:	60 e0       	ldi	r22, 0x00	; 0
- 33c:	8f ef       	ldi	r24, 0xFF	; 255
+ 33c:	80 e2       	ldi	r24, 0x20	; 32
  33e:	c5 df       	rcall	.-118    	; 0x2ca <USART_Send>
  340:	03 c0       	rjmp	.+6      	; 0x348 <SMTick2+0x5a>
  342:	60 e0       	ldi	r22, 0x00	; 0
- 344:	80 e0       	ldi	r24, 0x00	; 0
+ 344:	81 e2       	ldi	r24, 0x21	; 33
  346:	c1 df       	rcall	.-126    	; 0x2ca <USART_Send>
  348:	ce 01       	movw	r24, r28
  34a:	df 91       	pop	r29

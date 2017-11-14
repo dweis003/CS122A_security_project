@@ -130,10 +130,10 @@ int SMTick2(int state) {
 		
 		case transmitting:
 			if(LED_val == 1){
-				USART_Send(0xFF, 0);
+				USART_Send(0x20, 0);
 			}
 			else{
-				USART_Send(0x00, 0);
+				USART_Send(0x21, 0);
 			}
 		break;
 		
