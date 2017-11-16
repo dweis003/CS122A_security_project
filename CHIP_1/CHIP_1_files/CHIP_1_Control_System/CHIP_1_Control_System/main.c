@@ -96,7 +96,7 @@ unsigned char buzz_off_period = 250;
 
 //bluetooth USART FSM
 unsigned char bluetooth_arm_disarm = 2; // 0 = disarm, 1 = arm, 2 = no valid input
-
+unsigned char bluetooth_temp = 0x00; 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //functions
@@ -616,11 +616,24 @@ void Menu_Tick(){
 		keypad_val = GetKeypadKey();
 		//PORTB = 0x00;
 		//print_matrix(matrix_array_lock);
-		if(keypad_val == '\0' ){ //null stay here
-			menu_state = main_menu_disarmed;
-			output_temp(received_value); //menu output with temp when disarmed
-		}
 
+		if(keypad_val == '\0' ){ //null stay here
+			if(bluetooth_arm_disarm == 2){   //bluetooth either never received data yet or received invalid do nothing
+				menu_state = main_menu_disarmed;
+				output_temp(received_value); //menu output with temp when disarmed
+			}
+			else if(bluetooth_arm_disarm == 0){ //bluetooth received disarm code, already disarmed so do nothing
+				menu_state = main_menu_disarmed;
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				output_temp(received_value); //menu output with temp when disarmed
+			}
+			else{ //bluetooth received arm code go to armed mode
+				menu_state = main_menu_armed;
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				ARM_DISARM = 1; //set to armed mode
+				LCD_DisplayString(1, "system is armed!");
+			}
+		}
 		else if(keypad_val == 'A'){
 			menu_state = arm_or_disarm;
 			LCD_DisplayString(1, PassKey_LCD_data);
@@ -654,9 +667,21 @@ void Menu_Tick(){
 			menu_state = sensor_is_tripped;
 			LCD_DisplayString(1, "Tripped Sensor(s)");
 		}
-		else if(keypad_val == '\0' || keypad_val == 'B' || keypad_val == 'C' || keypad_val == 'D' ){ //stay here
-			menu_state = main_menu_armed;
-			LCD_DisplayString(1, "system is armed!");
+		else if(keypad_val == '\0' || keypad_val == 'B' || keypad_val == 'C' || keypad_val == 'D' ){ //stay here and check bluetooth
+			if(bluetooth_arm_disarm == 2){   //bluetooth either never received data yet or received invalid do nothing
+				menu_state = main_menu_armed;
+				LCD_DisplayString(1, "system is armed!");
+			}
+			else if(bluetooth_arm_disarm == 1){ //bluetooth received arm code, already armed so do nothing
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				menu_state = main_menu_armed;
+				LCD_DisplayString(1, "system is armed!");
+			}
+			else{ //bluetooth received disarm code go to disarmed mode
+				menu_state = main_menu_disarmed;
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				ARM_DISARM = 0; //set to disarmed mode
+			}
 		}
 		else if(keypad_val == 'A'){ //enter passkey
 			menu_state = arm_or_disarm;
@@ -686,6 +711,7 @@ void Menu_Tick(){
 
 		case arm_or_disarm:
 		keypad_val = GetKeypadKey();
+		bluetooth_arm_disarm = 2; //invalidate any bluetooth input user has chosen to use keypad
 		if(keypad_val == '\0' || keypad_val == 'A' || keypad_val == 'B' || keypad_val == '*'|| keypad_val == '#'){ //null stay here
 			menu_state = arm_or_disarm;
 			LCD_DisplayString(1, PassKey_LCD_data);
@@ -947,8 +973,20 @@ void Menu_Tick(){
 			PassKey_LCD_data[19] = ' '; 
 			mode = 3; 
 		}
-		else{                    //either no or invalid input user stays in this mode
-			menu_state = sensor_is_tripped;
+		else{                    //either no or invalid input user stays in this mode or check bluetooth for input
+			if(bluetooth_arm_disarm == 2){   //bluetooth either never received data yet or received invalid do nothing
+				menu_state = sensor_is_tripped;
+			}
+			else if(bluetooth_arm_disarm == 1){ //bluetooth received arm code, already armed so do nothing
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				menu_state = sensor_is_tripped;
+			}
+			else{ //bluetooth received disarm code go to disarmed mode
+				menu_state = main_menu_disarmed;
+				bluetooth_arm_disarm = 2; //set back to null aka 2
+				ARM_DISARM = 0; //set to disarmed mode
+			}
+
 		}
 		
 		
@@ -1146,6 +1184,79 @@ void MatrixSecPulse(unsigned portBASE_TYPE Priority)
 	xTaskCreate(MatrixSecTask, (signed portCHAR *)"MatrixSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Bluetooth RECEIVE FSM
+enum BLUERECState {Blue_Rec_Wait, Blue_Receive_State } blue_rec_state;
+
+void BLUE_REC_Init(){
+	blue_rec_state = Blue_Rec_Wait;
+}
+
+void Blue_Rec_Tick(){
+	//Actions
+	switch(blue_rec_state){
+		case Blue_Rec_Wait:
+		break;
+
+
+		case Blue_Receive_State:
+		//get data from bluetooth
+		//bluetooth_arm_disarm = USART_Receive(1);
+		bluetooth_temp = USART_Receive(1);
+		if(bluetooth_temp == 0x0F){	//received arm command
+			bluetooth_arm_disarm = 1;
+		}
+		else if(bluetooth_temp == 0xF0){ //received disarm command
+			bluetooth_arm_disarm = 0; 
+		}
+		else{
+			bluetooth_arm_disarm = 2;  //random or invalid data set to 2
+		}
+		
+		USART_Flush(1); //flush so flag reset
+		break;
+		
+		default:
+		break;
+	}
+	//Transitions
+	switch(blue_rec_state){
+		case Blue_Rec_Wait:
+		if(USART_HasReceived(1)){
+			blue_rec_state = Blue_Receive_State; //if ready go to next state
+		}
+		else{
+			blue_rec_state = Blue_Rec_Wait; //if not ready to receive data stay
+		}
+		break;
+
+
+		case Blue_Receive_State:
+		blue_rec_state = Blue_Rec_Wait; //go back
+		break;
+		
+		default:
+		blue_rec_state = Blue_Rec_Wait;
+		break;
+	}
+
+}
+
+
+void BlueRecSecTask()
+{
+	BLUE_REC_Init();
+	for(;;)
+	{
+		Blue_Rec_Tick();
+		vTaskDelay(10);
+	}
+}
+
+void BlueRecSecPulse(unsigned portBASE_TYPE Priority)
+{
+	xTaskCreate(BlueRecSecTask, (signed portCHAR *)"BlueRecSecTask", configMINIMAL_STACK_SIZE, NULL, Priority, NULL );
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1290,6 +1401,7 @@ int main(void)
    MenuSecPulse(1);
    SenseSecPulse(1);
    BuzzSecPulse(1);
+   BlueRecSecPulse(1);
     //RunSchedular 
    vTaskStartScheduler(); 
  
