@@ -94,6 +94,10 @@ unsigned char buzzer_hign_period = 50;
 unsigned char buzzer_low_period = 50;
 unsigned char buzz_off_period = 250; 
 
+//bluetooth USART FSM
+unsigned char bluetooth_arm_disarm = 2; // 0 = disarm, 1 = arm, 2 = no valid input
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //functions
 unsigned char tens_place = 0x00;
@@ -1275,7 +1279,8 @@ int main(void)
    //LCD init
    LCD_init();
    //init USART
-   initUSART(0);     
+   initUSART(0); //used to communicate to CHIP 0
+   initUSART(1); //used to communicate via bluetooth  
   
   
    //Start Tasks  
