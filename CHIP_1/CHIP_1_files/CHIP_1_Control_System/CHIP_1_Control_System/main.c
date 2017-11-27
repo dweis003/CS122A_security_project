@@ -63,6 +63,7 @@ unsigned short random_count = 0;
 unsigned char in_main_menu = 0; //if 0 in main menu display temp
 unsigned char pass_location = 0; //0-3 when entering 
 unsigned char current_pass[4] = {1,2,3,4};
+unsigned char user_pass_temp[4] = {0,0,0,0};
 unsigned char user_input[4] = {' ', ' ', ' ', ' '};
 unsigned char generated_pass[4] = {4, 3, 2, 1}; //{' ', ' ', ' ', ' '};
 
@@ -271,72 +272,53 @@ void output_for_user_pass_reset(unsigned char value, unsigned char location){
 	if(value == '0'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(0 + '0');
-		current_pass[location] = 0;
-		//update eeprom
-		eeprom_write_byte(location,0);  
+		user_pass_temp[location] = 0; 
 	}
 	else if(value == '1'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(1 + '0');
-		current_pass[location] = 1;
-		//update eeprom
-		eeprom_write_byte(location,1);  
+		user_pass_temp[location] = 1;;  
 	}
 	else if(value == '2'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(2 + '0');
-		current_pass[location] = 2;
-		//update eeprom
-		eeprom_write_byte(location,2);
+		user_pass_temp[location] = 2;
 	}
 	else if(value == '3'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(3 + '0');
-		current_pass[location] = 3;
-		//update eeprom
-		eeprom_write_byte(location,3);
+		user_pass_temp[location] = 3;
 	}
 	else if(value == '4'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(4 + '0');
-		current_pass[location] = 4;
-		//update eeprom
-		eeprom_write_byte(location,4);
+		user_pass_temp[location] = 4;
 	}
 	else if(value == '5'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(5 + '0');
-		current_pass[location] = 5;
-		//update eeprom
-		eeprom_write_byte(location,5);
+		user_pass_temp[location] = 5;
 	}
 	else if(value == '6'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(6 + '0');
-		current_pass[location] = 6;
-		//update eeprom
-		eeprom_write_byte(location,6);
+		user_pass_temp[location] = 6;
 	}
 	else if(value == '7'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(7 + '0');
-		current_pass[location] = 7;
-		//update eeprom
-		eeprom_write_byte(location,7);
+		user_pass_temp[location] = 7;
+	
 	}
 	else if(value == '8'){
 		LCD_Cursor(17 + location);
 		LCD_WriteData(8 + '0');
-		current_pass[location] = 8;
-		//update eeprom
-		eeprom_write_byte(location,8);
+		user_pass_temp[location] = 8;
 	}
 	else{
 		LCD_Cursor(17 + location);
 		LCD_WriteData(9 + '0');
-		current_pass[location] = 9;
-		//update eeprom
-		eeprom_write_byte(location,9);
+		user_pass_temp[location] = 9;
 	}
 }
 
@@ -872,7 +854,27 @@ void Menu_Tick(){
 		case user_pass:
 		keypad_val = GetKeypadKey();
 		if(keypad_val == '\0' || keypad_val == 'A'|| keypad_val == 'B' || keypad_val == 'D' || keypad_val == '*' || keypad_val == '#'){
-			menu_state = user_pass;
+			if(pass_location == 4){
+				menu_state = main_menu_disarmed;
+				pass_location = 0;
+				//update password
+				current_pass[0] = user_pass_temp[0];
+				eeprom_update_byte(0,current_pass[0]);
+				current_pass[1] = user_pass_temp[1];
+				eeprom_update_byte(1,current_pass[1]);
+				current_pass[2] = user_pass_temp[2];
+				eeprom_update_byte(2,current_pass[2]);
+				current_pass[3] = user_pass_temp[3];
+				eeprom_update_byte(3,current_pass[3]);
+				//reset temp
+				user_pass_temp[0] = 0;
+				user_pass_temp[1] = 0;
+				user_pass_temp[2] = 0;
+				user_pass_temp[3] = 0;
+			}
+			else{
+				menu_state = user_pass;
+			}
 		}
 		else if(keypad_val == 'C'){
 			menu_state = main_menu_disarmed;
@@ -917,10 +919,10 @@ void Menu_Tick(){
 			current_pass[2] = generated_pass[2];
 			current_pass[3] = generated_pass[3];
 			//update eeprom
-			eeprom_write_byte(0,current_pass[0]);  //address 0
-			eeprom_write_byte(1,current_pass[1]);  //address 1
-			eeprom_write_byte(2,current_pass[2]);  //address 2
-			eeprom_write_byte(3,current_pass[3]);  //address 3
+			eeprom_update_byte(0,current_pass[0]);  //address 0
+			eeprom_update_byte(1,current_pass[1]);  //address 1
+			eeprom_update_byte(2,current_pass[2]);  //address 2
+			eeprom_update_byte(3,current_pass[3]);  //address 3
 			menu_state = main_menu_disarmed;
 		}
 		else if(keypad_val == 'C'){ //user did not accept new passkey
