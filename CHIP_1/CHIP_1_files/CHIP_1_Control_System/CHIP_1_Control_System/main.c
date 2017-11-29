@@ -707,7 +707,7 @@ void Menu_Tick(){
 			}
 			
 		}
-		else if(keypad_val == 'D'){ //enter button check password
+		else if(keypad_val == 'D' && pass_location > 3){ //enter button check password and 4 inputed character
 			if(check_password() == 1 && mode == 0){ //password correct
 				if(ARM_DISARM == 0){
 					ARM_DISARM = 1;
@@ -783,6 +783,9 @@ void Menu_Tick(){
 			}
 
 		}
+		else if(keypad_val == 'D' && pass_location < 3){ //do nothing user must input 4 characters
+			menu_state = arm_or_disarm;
+		}
 		else{					//0-9 pressed 
 			menu_state = pass_enter;
 			if(pass_location < 4){
@@ -806,6 +809,7 @@ void Menu_Tick(){
 		case reset_pass:
 		keypad_val = GetKeypadKey();
 		++random_count; 
+		bluetooth_arm_disarm = 2; //nullify any bluetooth data while in this mode
 		if(keypad_val == '\0' || keypad_val == 'A'|| keypad_val == 'B' || keypad_val == 'D'){
 			menu_state = reset_pass;
 		}
@@ -853,9 +857,17 @@ void Menu_Tick(){
 
 		case user_pass:
 		keypad_val = GetKeypadKey();
-		if(keypad_val == '\0' || keypad_val == 'A'|| keypad_val == 'B' || keypad_val == 'D' || keypad_val == '*' || keypad_val == '#'){
+		bluetooth_arm_disarm = 2;// nullify any bluetooth data in this mode
+		if(keypad_val == '\0' || keypad_val == 'A'|| keypad_val == 'B' || keypad_val == '*' || keypad_val == '#'){
+			if(pass_location > 3){
+				LCD_Cursor(33); //move cursor off screen
+			}
+			menu_state = user_pass;
+		}
+		else if(keypad_val == 'D'){
 			if(pass_location == 4){
 				menu_state = main_menu_disarmed;
+				bluetooth_arm_disarm = 2; //nullify bluetooth input
 				pass_location = 0;
 				//update password
 				current_pass[0] = user_pass_temp[0];
@@ -878,24 +890,23 @@ void Menu_Tick(){
 		}
 		else if(keypad_val == 'C'){
 			menu_state = main_menu_disarmed;
+			//reset temp values
+			user_pass_temp[0] = 0;
+			user_pass_temp[1] = 0;
+			user_pass_temp[2] = 0;
+			user_pass_temp[3] = 0;
+			pass_location = 0;
 		} 
 		else{
-		
-			if(pass_location == 4){
-				menu_state = main_menu_disarmed;
-				pass_location = 0;
-			}
-
-			else{
+			if(pass_location < 4){
 				menu_state = user_pass_wait; //valid key pressed
 				output_for_user_pass_reset(keypad_val, pass_location);
-				++pass_location;
-				
-
+				++pass_location;	
 			}
-			
+			else{
+				LCD_Cursor(33); //move cursor off screen
+			}
 		}
-
 		break;
 
 		case user_pass_wait:
@@ -924,9 +935,11 @@ void Menu_Tick(){
 			eeprom_update_byte(2,current_pass[2]);  //address 2
 			eeprom_update_byte(3,current_pass[3]);  //address 3
 			menu_state = main_menu_disarmed;
+			bluetooth_arm_disarm = 2; //nullify bluetooth input
 		}
 		else if(keypad_val == 'C'){ //user did not accept new passkey
 			menu_state = main_menu_disarmed;
+			bluetooth_arm_disarm = 2; //nullify bluetooth input
 		}
 		else{						//else some other invalid key is pressed do nothing
 			menu_state = random_pass;
@@ -1397,6 +1410,7 @@ int main(void)
   
   
    //Start Tasks  
+   //BuzzSecPulse(1);
    TransSecPulse(1);
    RecSecPulse(1);
    MatrixSecPulse(1);
